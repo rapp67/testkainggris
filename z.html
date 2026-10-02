@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopee Sales Calendar & Countdown Planner</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-orange-500 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white text-orange-500 p-2.5 rounded-xl shadow font-bold text-xl flex items-center justify-center">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Shopee War & Sales Planner</h1>
+                    <p class="text-xs text-orange-100">Catat jam sakral, pasang pengingat, amankan diskon!</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="app.requestNotificationPermission()" id="notifBtn" class="bg-orange-600 hover:bg-orange-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm border border-orange-400">
+                    <i class="fa-solid fa-bell"></i> Izin Notifikasi
+                </button>
+                <button onclick="app.openModal()" class="bg-white text-orange-600 hover:bg-orange-50 text-sm px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 shadow">
+                    <i class="fa-solid fa-plus"></i> Tambah Event Baru
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="activeCountdownBanner" class="hidden bg-amber-500 text-white px-4 py-3 shadow-inner transition-all duration-300">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <span class="animate-ping relative inline-flex h-3 w-3 rounded-full bg-white opacity-75"></span>
+                <span class="font-bold text-sm uppercase tracking-wider" id="bannerTitle">Peringatan Event Mendekati Waktu!</span>
+            </div>
+            <div class="text-sm font-semibold bg-amber-600 px-3 py-1 rounded-lg" id="bannerTimerText">
+                Waktu Tersisa: 05:00
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Calendar & Filters -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Mini Calendar Widget -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-slate-800 text-base" id="calendarMonthTitle">Bulan & Tahun</h2>
+                    <div class="flex gap-1">
+                        <button onclick="app.prevMonth()" class="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                        <button onclick="app.nextMonth()" class="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 mb-2">
+                    <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-sm" id="calendarDaysGrid">
+                    <!-- Dynamic Days -->
+                </div>
+            </div>
+
+            <!-- Quick Info / Tips Card -->
+            <div class="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 p-5 rounded-2xl shadow-sm">
+                <h3 class="font-bold text-orange-900 text-sm mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-orange-500"></i> Panduan Jam Sakral
+                </h3>
+                <ul class="text-xs text-orange-800 space-y-2 leading-relaxed">
+                    <li>• <b>00.00 WIB:</b> Puncak Payday / Tanggal Kembar (Diskon up to 99%).</li>
+                    <li>• <b>11.59 / 17.59 / 23.59:</b> Hidden Sale diskon mendadak.</li>
+                    <li>• <b>09.00 WIB:</b> Voucher Sembako & MakMin.</li>
+                    <li>• <i>Tips:</i> Masukkan link produk di catatan agar bisa langsung klik saat mendekati jam perang diskon!</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Right Column: Event List & Details -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Filter & Search Bar -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="bg-orange-100 text-orange-600 font-bold px-3 py-1.5 rounded-xl text-sm" id="selectedDateLabel">
+                        Semua Jadwal
+                    </div>
+                    <button onclick="app.resetDateFilter()" id="resetFilterBtn" class="hidden text-xs text-slate-500 hover:text-orange-600 underline">Tampilkan Semua</button>
+                </div>
+                <div class="relative w-full sm:w-64">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fa-solid fa-search text-xs"></i></span>
+                    <input type="text" id="searchInput" oninput="app.handleSearch(this.value)" placeholder="Cari event, toko, baju..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <!-- Events List Container -->
+            <div class="space-y-4" id="eventsListContainer">
+                <!-- Dynamic Events -->
+            </div>
+        </div>
+    </main>
+
+    <div id="eventModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all">
+            <div class="bg-orange-500 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg" id="modalTitle">Tambah Jadwal Diskon</h3>
+                <button onclick="app.closeModal()" class="text-white hover:text-orange-100 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="eventForm" onsubmit="app.saveEvent(event)" class="p-6 space-y-4">
+                <input type="hidden" id="eventId">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Event / Catatan (cth: Baju Blouse Korean Style)</label>
+                    <input type="text" id="eventTitleInput" required placeholder="Misal: Flash Sale Toko Baju A" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal</label>
+                        <input type="date" id="eventDateInput" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Diskon</label>
+                        <input type="time" id="eventTimeInput" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Kategori / Label</label>
+                    <select id="eventCategoryInput" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <option value="Payday / Tanggal Kembar">Payday / Tanggal Kembar</option>
+                        <option value="Hidden Sale / Jam Sakral">Hidden Sale / Jam Sakral</option>
+                        <option value="Brand Day / Official Store">Brand Day / Official Store</option>
+                        <option value="Fashion / Baju & Outfit">Fashion / Baju & Outfit</option>
+                        <option value="Skincare / Beauty">Skincare / Beauty</option>
+                        <option value="Lainnya">Lainnya</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Link Tautan Shopee (Opsional)</label>
+                    <input type="url" id="eventUrlInput" placeholder="https://shopee.co.id/..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Catatan Tambahan (Voucher / Kode Diskon)</label>
+                    <textarea id="eventNotesInput" rows="2" placeholder="Klaim voucher toko dulu, siapkan ShopeePay..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                </div>
+                <div class="pt-2 flex justify-end gap-3">
+                    <button type="button" onclick="app.closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 transition">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 transition shadow">Simpan Jadwal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="customAlertModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden p-6 text-center space-y-4">
+            <div id="alertIconContainer" class="w-12 h-12 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center mx-auto text-xl font-bold">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <h4 id="alertTitle" class="font-bold text-lg text-slate-800">Notifikasi Diskon</h4>
+            <p id="alertMessage" class="text-sm text-slate-600 leading-relaxed"></p>
+            <button onclick="app.closeAlert()" class="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl text-sm transition">Mengerti</button>
+        </div>
+    </div>
+
+    <script>
+        class ShopeePlannerApp {
+            constructor() {
+                this.events = [];
+                this.currentDate = new Date();
+                this.selectedDateFilter = null;
+                this.searchQuery = '';
+                this.notifiedTimestamps = new Set(); // To avoid duplicate alerts in same minute
+                this.loadFromStorage();
+                this.initCalendar();
+                this.initTimerEngine();
+                
+                // Check initial notification permission status
+                if (window.Notification && Notification.permission === "granted") {
+                    const btn = document.getElementById('notifBtn');
+                    btn.innerHTML = '<i class="fa-solid fa-bell"></i> Notifikasi Aktif';
+                    btn.classList.replace('bg-orange-600', 'bg-emerald-600');
+                    btn.classList.replace('border-orange-400', 'border-emerald-400');
+                }
+            }
+
+            loadFromStorage() {
+                const saved = localStorage.getItem('shopee_planner_events');
+                if (saved) {
+                    try {
+                        this.events = JSON.parse(saved);
+                    } catch (e) {
+                        this.events = [];
+                    }
+                } else {
+                    // Seed initial helpful dummy data
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    this.events = [
+                        {
+                            id: 'default-1',
+                            title: 'Payday Midnight Sale & Baju Oversize',
+                            date: todayStr,
+                            time: '00:00',
+                            category: 'Payday / Tanggal Kembar',
+                            url: 'https://shopee.co.id',
+                            notes: 'Klaim voucher diskon 50% di halaman utama sekarang!'
+                        },
+                        {
+                            id: 'default-2',
+                            title: 'Hidden Sale Flash Diskon Sore',
+                            date: todayStr,
+                            time: '17:59',
+                            category: 'Hidden Sale / Jam Sakral',
+                            url: '',
+                            notes: 'Siapkan saldo ShopeePay & cek keranjang.'
+                        }
+                    ];
+                    this.saveToStorage();
+                }
+            }
+
+            saveToStorage() {
+                localStorage.setItem('shopee_planner_events', JSON.stringify(this.events));
+                this.renderEvents();
+                this.initCalendar();
+            }
+
+            requestNotificationPermission() {
+                if (!window.Notification) {
+                    this.showAlert("Perhatian", "Browser Anda tidak mendukung fitur Web Push Notification.");
+                    return;
+                }
+                Notification.requestPermission().then(permission => {
+                    const btn = document.getElementById('notifBtn');
+                    if (permission === "granted") {
+                        btn.innerHTML = '<i class="fa-solid fa-bell"></i> Notifikasi Aktif';
+                        btn.classList.replace('bg-orange-600', 'bg-emerald-600');
+                        btn.classList.replace('border-orange-400', 'border-emerald-400');
+                        this.showAlert("Berhasil", "Izin notifikasi diberikan! Anda akan menerima peringatan countdown 5 menit sebelum diskon.");
+                    } else {
+                        this.showAlert("Gagal", "Izin notifikasi ditolak oleh browser.");
+                    }
+                });
+            }
+
+            initCalendar() {
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                
+                const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                document.getElementById('calendarMonthTitle').innerText = `${monthNames[month]} ${year}`;
+
+                const firstDayIndex = new Date(year, month, 1).getDay();
+                const totalDays = new Date(year, month + 1, 0).getDate();
+
+                const grid = document.getElementById('calendarDaysGrid');
+                grid.innerHTML = '';
+
+                // Blank spaces for previous month
+                for (let i = 0; i < firstDayIndex; i++) {
+                    const emptyCell = document.createElement('div');
+                    grid.appendChild(emptyCell);
+                }
+
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                for (let day = 1; day <= totalDays; day++) {
+                    const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const hasEvents = this.events.some(e => e.date === dayStr);
+                    const isToday = (dayStr === todayStr);
+                    const isSelected = (this.selectedDateFilter === dayStr);
+
+                    const btn = document.createElement('button');
+                    let className = "h-9 w-9 mx-auto flex items-center justify-center rounded-xl text-sm font-medium transition relative ";
+                    
+                    if (isSelected) {
+                        className += "bg-orange-500 text-white font-bold shadow";
+                    } else if (isToday) {
+                        className += "border-2 border-orange-500 text-orange-600 font-bold";
+                    } else {
+                        className += "hover:bg-slate-100 text-slate-700";
+                    }
+
+                    btn.className = className;
+                    btn.innerText = day;
+                    btn.onclick = () => this.filterByDate(dayStr);
+
+                    if (hasEvents && !isSelected) {
+                        const dot = document.createElement('span');
+                        dot.className = "absolute bottom-1 w-1 h-1 bg-orange-500 rounded-full";
+                        btn.appendChild(dot);
+                    }
+
+                    grid.appendChild(btn);
+                }
+
+                this.renderEvents();
+            }
+
+            prevMonth() {
+                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                this.initCalendar();
+            }
+
+            nextMonth() {
+                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                this.initCalendar();
+            }
+
+            filterByDate(dateStr) {
+                if (this.selectedDateFilter === dateStr) {
+                    this.resetDateFilter();
+                } else {
+                    this.selectedDateFilter = dateStr;
+                    document.getElementById('selectedDateLabel').innerText = `Tanggal: ${dateStr}`;
+                    document.getElementById('resetFilterBtn').classList.remove('hidden');
+                    this.initCalendar();
+                }
+            }
+
+            resetDateFilter() {
+                this.selectedDateFilter = null;
+                document.getElementById('selectedDateLabel').innerText = 'Semua Jadwal';
+                document.getElementById('resetFilterBtn').classList.add('hidden');
+                this.initCalendar();
+            }
+
+            handleSearch(query) {
+                this.searchQuery = query.toLowerCase();
+                this.renderEvents();
+            }
+
+            renderEvents() {
+                const container = document.getElementById('eventsListContainer');
+                let filtered = this.events;
+
+                if (this.selectedDateFilter) {
+                    filtered = filtered.filter(e => e.date === this.selectedDateFilter);
+                }
+
+                if (this.searchQuery) {
+                    filtered = filtered.filter(e => 
+                        e.title.toLowerCase().includes(this.searchQuery) ||
+                        e.category.toLowerCase().includes(this.searchQuery) ||
+                        (e.notes && e.notes.toLowerCase().includes(this.searchQuery))
+                    );
+                }
+
+                // Sort by date and time
+                filtered.sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 text-center space-y-3">
+                            <div class="text-slate-300 text-4xl"><i class="fa-solid fa-calendar-xmark"></i></div>
+                            <h4 class="font-bold text-slate-700">Tidak ada jadwal diskon ditemukan</h4>
+                            <p class="text-xs text-slate-400">Tambahkan jam sakral atau event belanja baru menggunakan tombol di atas.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = filtered.map(ev => {
+                    const eventDateTime = new Date(`${ev.date}T${ev.time}:00`);
+                    const now = new Date();
+                    const diffMs = eventDateTime - now;
+                    const diffMins = Math.floor(diffMs / 60000);
+
+                    let badgeColor = 'bg-orange-100 text-orange-700';
+                    if (ev.category.includes('Hidden')) badgeColor = 'bg-purple-100 text-purple-700';
+                    if (ev.category.includes('Brand')) badgeColor = 'bg-blue-100 text-blue-700';
+                    if (ev.category.includes('Fashion')) badgeColor = 'bg-pink-100 text-pink-700';
+
+                    let statusBadge = '';
+                    if (diffMins < 0 && diffMins > -120) {
+                        statusBadge = `<span class="bg-red-100 text-red-600 font-semibold px-2.5 py-1 rounded-lg text-xs animate-pulse">🔴 Sedang Berlangsung!</span>`;
+                    } else if (diffMins >= 0 && diffMins <= 5) {
+                        statusBadge = `<span class="bg-amber-100 text-amber-700 font-semibold px-2.5 py-1 rounded-lg text-xs animate-bounce">⚡ Tinggal ${diffMins} Menit Lagi!</span>`;
+                    } else if (diffMins > 5) {
+                        statusBadge = `<span class="bg-slate-100 text-slate-600 font-medium px-2.5 py-1 rounded-lg text-xs">Mendatang</span>`;
+                    } else {
+                        statusBadge = `<span class="bg-slate-100 text-slate-400 font-medium px-2.5 py-1 rounded-lg text-xs">Selesai</span>`;
+                    }
+
+                    return `
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:border-orange-200 transition space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg ${badgeColor}">${ev.category}</span>
+                                    ${statusBadge}
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                    <span><i class="fa-regular fa-calendar mr-1"></i>${ev.date}</span>
+                                    <span>•</span>
+                                    <span class="text-orange-600 font-bold"><i class="fa-regular fa-clock mr-1"></i>${ev.time} WIB</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-base">${this.escapeHtml(ev.title)}</h3>
+                                ${ev.notes ? `<p class="text-xs text-slate-600 mt-1 whitespace-pre-line bg-slate-50 p-3 rounded-xl border border-slate-100">${this.escapeHtml(ev.notes)}</p>` : ''}
+                            </div>
+
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                                <div class="flex items-center gap-2">
+                                    ${ev.url ? `<a href="${this.escapeHtml(ev.url)}" target="_blank" class="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"><i class="fa-solid fa-external-link-alt"></i> Buka Link Shopee</a>` : '<span class="text-xs text-slate-400 italic">Tanpa link tautan</span>'}
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button onclick="app.editEvent('${ev.id}')" class="p-2 text-slate-400 hover:text-orange-600 rounded-lg hover:bg-slate-50 transition" title="Edit"><i class="fa-solid fa-pen text-xs"></i></button>
+                                    <button onclick="app.deleteEvent('${ev.id}')" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-50 transition" title="Hapus"><i class="fa-solid fa-trash text-xs"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            initTimerEngine() {
+                // Check countdowns every 10 seconds
+                setInterval(() => {
+                    this.checkCountdowns();
+                }, 10000);
+                // Initial check
+                this.checkCountdowns();
+            }
+
+            checkCountdowns() {
+                const now = new Date();
+                let closestEvent = null;
+                let minDiff = Infinity;
+
+                this.events.forEach(ev => {
+                    const eventTime = new Date(`${ev.date}T${ev.time}:00`);
+                    const diffMs = eventTime - now;
+                    const diffMins = Math.floor(diffMs / 60000);
+
+                    // If event is approaching within 5 minutes (diffMins between 0 and 5)
+                    if (diffMins >= 0 && diffMins <= 5) {
+                        const uniqueKey = `${ev.id}_${diffMins}`;
+                        if (!this.notifiedTimestamps.has(uniqueKey)) {
+                            this.notifiedTimestamps.add(uniqueKey);
+                            this.triggerCountdownAlert(ev, diffMins);
+                        }
+                    }
+
+                    if (diffMs > 0 && diffMs < minDiff) {
+                        minDiff = diffMs;
+                        closestEvent = { ...ev, diffMins: Math.ceil(diffMs / 60000) };
+                    }
+                });
+
+                // Update banner for closest upcoming event
+                const banner = document.getElementById('activeCountdownBanner');
+                if (closestEvent && closestEvent.diffMins <= 60) {
+                    banner.classList.remove('hidden');
+                    document.getElementById('bannerTitle').innerText = `⚡ Segera Dimulai (${closestEvent.diffMins} mnt lagi): ${closestEvent.title}`;
+                    document.getElementById('bannerTimerText').innerText = `Jam ${closestEvent.time} WIB (${closestEvent.date})`;
+                } else {
+                    banner.classList.add('hidden');
+                }
+
+                // Re-render to update badges real-time
+                this.renderEvents();
+            }
+
+            triggerCountdownAlert(ev, minsLeft) {
+                const titleText = `⚡ PERINGATAN DISKON (${minsLeft} Menit Lagi!)`;
+                const msgText = `Event "${ev.title}" akan dimulai pada jam ${ev.time} WIB!\n\nCatatan: ${ev.notes || 'Siapkan keranjang dan klaim voucher sekarang.'}`;
+
+                // Show browser push notification if granted
+                if (window.Notification && Notification.permission === "granted") {
+                    new Notification(titleText, {
+                        body: msgText,
+                        icon: 'https://placehold.co/128x128/ff5722/ffffff?text=Shopee'
+                    });
+                }
+
+                // Show custom modal alert
+                this.showAlert(titleText, msgText);
+            }
+
+            openModal(eventId = null) {
+                const modal = document.getElementById('eventModal');
+                const form = document.getElementById('eventForm');
+                form.reset();
+                document.getElementById('eventId').value = '';
+
+                if (eventId) {
+                    document.getElementById('modalTitle').innerText = 'Edit Jadwal Diskon';
+                    const ev = this.events.find(x => x.id === eventId);
+                    if (ev) {
+                        document.getElementById('eventId').value = ev.id;
+                        document.getElementById('eventTitleInput').value = ev.title;
+                        document.getElementById('eventDateInput').value = ev.date;
+                        document.getElementById('eventTimeInput').value = ev.time;
+                        document.getElementById('eventCategoryInput').value = ev.category;
+                        document.getElementById('eventUrlInput').value = ev.url || '';
+                        document.getElementById('eventNotesInput').value = ev.notes || '';
+                    }
+                } else {
+                    document.getElementById('modalTitle').innerText = 'Tambah Jadwal Diskon Baru';
+                    // Default to today
+                    document.getElementById('eventDateInput').value = new Date().toISOString().split('T')[0];
+                    document.getElementById('eventTimeInput').value = '00:00';
+                }
+
+                modal.classList.remove('hidden');
+            }
+
+            closeModal() {
+                document.getElementById('eventModal').classList.add('hidden');
+            }
+
+            saveEvent(e) {
+                e.preventDefault();
+                const id = document.getElementById('eventId').value;
+                const title = document.getElementById('eventTitleInput').value.trim();
+                const date = document.getElementById('eventDateInput').value;
+                const time = document.getElementById('eventTimeInput').value;
+                const category = document.getElementById('eventCategoryInput').value;
+                const url = document.getElementById('eventUrlInput').value.trim();
+                const notes = document.getElementById('eventNotesInput').value.trim();
+
+                if (id) {
+                    // Update
+                    const index = this.events.findIndex(x => x.id === id);
+                    if (index !== -1) {
+                        this.events[index] = { id, title, date, time, category, url, notes };
+                    }
+                } else {
+                    // Create
+                    const newEv = {
+                        id: 'ev_' + Date.now(),
+                        title,
+                        date,
+                        time,
+                        category,
+                        url,
+                        notes
+                    };
+                    this.events.push(newEv);
+                }
+
+                this.saveToStorage();
+                this.closeModal();
+                this.showAlert('Sukses', 'Jadwal diskon berhasil disimpan secara lokal!');
+            }
+
+            editEvent(id) {
+                this.openModal(id);
+            }
+
+            deleteEvent(id) {
+                if (confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
+                    this.events = this.events.filter(x => x.id !== id);
+                    this.saveToStorage();
+                }
+            }
+
+            showAlert(title, message) {
+                document.getElementById('alertTitle').innerText = title;
+                document.getElementById('alertMessage').innerText = message;
+                document.getElementById('customAlertModal').classList.remove('hidden');
+            }
+
+            closeAlert() {
+                document.getElementById('customAlertModal').classList.add('hidden');
+            }
+
+            escapeHtml(str) {
+                return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            }
+        }
+
+        // Initialize application instance globally
+        const app = new ShopeePlannerApp();
+    </script>
+</body>
+</html>
